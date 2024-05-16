@@ -8,18 +8,22 @@ const instance = new Razorpay({
     key_secret: process.env.RAZORPAY_API_SECRET,
   });
 
+let orderId = 0;
 
 const checkout  = async (req, res)=>{
     try {
-        console.log(instance);
+        
     const options = {
-        amount: 50000,  // amount in the smallest currency unit
+        amount: Number(req.body.amount * 100),  // amount in the smallest currency unit
         currency: "INR",
         };
+
         const order = await instance.orders.create(options);
-        console.log(order);
+        orderId = order.id
+
         res.json({
-        msg:"success"
+        msg:"success",
+        order,
         })
         
     } catch (error) {
@@ -30,4 +34,34 @@ const checkout  = async (req, res)=>{
 
 }
 
-module.exports =  checkout;
+const paymentVarification =  async (req, res) => {
+
+  const { razorpay_payment_id, razorpay_signature } =
+    req.body;
+
+  const order_id = orderId
+  const secret = process.env.RAZORPAY_API_SECRET
+    
+  const generated_signature = hmac_sha256(order_id + "|" + razorpay_payment_id, secret);
+
+  if (generated_signature == razorpay_signature) {
+    res.status(200).json({
+        msg:"success"
+    })
+  }
+  else{
+    res.json({
+        msg:"error"
+    })
+  }
+    
+
+}
+
+const getkey  = (req, res) => {
+    res.status(200).json({
+        key:process.env.RAZORPAY_API_KEY
+    })
+}
+
+module.exports = { checkout, paymentVarification, getkey };
